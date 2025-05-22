@@ -4,6 +4,7 @@ pub(crate) mod array;
 pub(crate) mod base;
 pub(crate) mod function;
 pub(crate) mod library;
+pub(crate) mod loaders;
 pub(crate) mod pointer;
 pub(crate) mod structure;
 pub(crate) mod union;
@@ -17,6 +18,12 @@ pub fn extend_module_nodes(vm: &VirtualMachine, module: &Py<PyModule>) {
     let ctx = &vm.ctx;
     PyCSimpleType::make_class(ctx);
     array::PyCArrayType::make_class(ctx);
+    loaders::PyCDLL::make_class(ctx); 
+    loaders::PyWinDLL::make_class(ctx);
+    loaders::PyOleDLL::make_class(ctx);
+    loaders::PyPyDLL::make_class(ctx);
+    function::PyCFuncTypeType::make_class(ctx); // Added
+    function::PyCallbackObject::make_class(ctx); // Added
     extend_module!(vm, module, {
         "_CData" => PyCData::make_class(ctx),
         "_SimpleCData" => PyCSimple::make_class(ctx),
@@ -26,12 +33,32 @@ pub fn extend_module_nodes(vm: &VirtualMachine, module: &Py<PyModule>) {
         "_pointer_type_cache" => ctx.new_dict(),
         "Structure" => structure::PyCStructure::make_class(ctx),
         "Union" => union::PyCUnion::make_class(ctx),
+        "CDLL" => loaders::PyCDLL::type_py(ctx), 
+        "WinDLL" => loaders::PyWinDLL::type_py(ctx),
+        "OleDLL" => loaders::PyOleDLL::type_py(ctx),
+        "PyDLL" => loaders::PyPyDLL::type_py(ctx),
+        // Exposing the metaclass and callback base type, primarily for internal use/testing
+        "PyCFuncType_Type" => function::PyCFuncTypeType::type_py(ctx), // Added
+        "PyCallback" => function::PyCallbackObject::type_py(ctx),   // Added
     })
 }
 
 pub(crate) fn make_module(vm: &VirtualMachine) -> PyRef<PyModule> {
     let module = _ctypes::make_module(vm);
     extend_module_nodes(vm, &module);
+    
+    let cdll_class = loaders::PyCDLL::class(&vm.ctx);
+    loaders::init_type(vm, &module, cdll_class.as_ref());
+    
+    let windll_class = loaders::PyWinDLL::class(&vm.ctx);
+    loaders::init_type(vm, &module, windll_class.as_ref());
+
+    let oledll_class = loaders::PyOleDLL::class(&vm.ctx);
+    loaders::init_type(vm, &module, oledll_class.as_ref());
+
+    let pydll_class = loaders::PyPyDLL::class(&vm.ctx);
+    loaders::init_type(vm, &module, pydll_class.as_ref());
+    
     module
 }
 
